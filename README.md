@@ -1,5 +1,8 @@
 # 🎬 YT Drop — YouTube Downloader
 
+<img width="3594" height="1830" alt="image" src="https://github.com/user-attachments/assets/b1a042fa-8a12-43e9-ac8c-d0219e27056d" />
+
+
 A lightweight, browser-based tool that generates [yt-dlp](https://github.com/yt-dlp/yt-dlp) commands for downloading YouTube videos. No extensions, no accounts, no limits — just paste a URL and go.
 
 ![HTML](https://img.shields.io/badge/HTML-single%20file-orange)
