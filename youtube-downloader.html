@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>YT Drop — YouTube Downloader</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --border: #1f1f1f;
+    --red: #ff2b2b;
+    --red-dim: #991a1a;
+    --white: #f0f0f0;
+    --muted: #555;
+    --success: #22c55e;
+    --mono: 'JetBrains Mono', monospace;
+    --display: 'Syne', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: var(--display);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    overflow-x: hidden;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(255,255,255,0.012) 2px,
+      rgba(255,255,255,0.012) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  .logo {
+    font-size: 11px;
+    letter-spacing: 0.4em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 60px;
+    font-family: var(--mono);
+  }
+
+  .logo span { color: var(--red); }
+
+  h1 {
+    font-size: clamp(3rem, 8vw, 6rem);
+    font-weight: 800;
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    margin-bottom: 16px;
+    text-align: center;
+  }
+
+  h1 em {
+    font-style: normal;
+    color: var(--red);
+    display: block;
+  }
+
+  .subtitle {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 60px;
+    letter-spacing: 0.1em;
+  }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 32px;
+    width: 100%;
+    max-width: 680px;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 12px 20px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tab-btn.active {
+    background: var(--red);
+    color: var(--white);
+  }
+
+  .tab-btn:not(.active):hover {
+    background: var(--border);
+    color: var(--white);
+  }
+
+  /* ── URL INPUT ── */
+  .input-wrap {
+    width: 100%;
+    max-width: 680px;
+    position: relative;
+    margin-bottom: 24px;
+  }
+
+  .url-input {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: var(--mono);
+    font-size: 14px;
+    padding: 20px 56px 20px 20px;
+    border-radius: 6px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .url-input::placeholder { color: var(--muted); }
+  .url-input:focus { border-color: var(--red); }
+
+  .paste-btn {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 6px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+  }
+
+  .paste-btn:hover { border-color: var(--red); color: var(--red); }
+
+  /* ── OPTIONS ── */
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+    max-width: 680px;
+    margin-bottom: 24px;
+  }
+
+  .option-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--muted);
+    text-transform: uppercase;
+    display: block;
+    margin-bottom: 8px;
+  }
+
+  select {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--white);
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    outline: none;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23555'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+  }
+
+  select:focus { border-color: var(--red); }
+
+  /* ── GENERATE BTN ── */
+  .generate-btn {
+    width: 100%;
+    max-width: 680px;
+    padding: 20px;
+    background: var(--red);
+    color: var(--white);
+    border: none;
+    font-family: var(--display);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 40px;
+  }
+
+  .generate-btn:hover { background: #e01f1f; transform: translateY(-1px); }
+  .generate-btn:active { transform: translateY(0); }
+
+  /* ── OUTPUT SECTION ── */
+  .output-section {
+    width: 100%;
+    max-width: 680px;
+    display: none;
+  }
+
+  .output-section.visible { display: block; }
+
+  .step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 16px;
+    overflow: hidden;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .step-num {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: var(--red);
+    color: white;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .step-title {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+  }
+
+  .step-desc {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+
+  .step-body { padding: 16px 20px; }
+
+  .code-block {
+    background: #0d0d0d;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: #a8e6cf;
+    line-height: 1.6;
+    position: relative;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--border);
+    border: none;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: all 0.2s;
+  }
+
+  .copy-btn:hover { color: var(--white); background: var(--red); }
+  .copy-btn.copied { color: var(--success); border-color: var(--success); }
+
+  .download-script-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 16px;
+    background: transparent;
+    border: 2px solid var(--red);
+    color: var(--red);
+    font-family: var(--display);
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 12px;
+  }
+
+  .download-script-btn:hover { background: var(--red); color: white; }
+
+  .note {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-top: 8px;
+  }
+
+  .note a { color: var(--red); text-decoration: none; }
+  .note a:hover { text-decoration: underline; }
+
+  .pill {
+    display: inline-block;
+    background: rgba(255,43,43,0.12);
+    border: 1px solid rgba(255,43,43,0.3);
+    color: var(--red);
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.08em;
+  }
+
+  footer {
+    margin-top: 60px;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: #333;
+    letter-spacing: 0.1em;
+    text-align: center;
+  }
+
+  /* Pulse animation on valid URL */
+  @keyframes borderPulse {
+    0%, 100% { border-color: var(--red); box-shadow: 0 0 0 0 rgba(255,43,43,0); }
+    50% { border-color: var(--red); box-shadow: 0 0 0 4px rgba(255,43,43,0.1); }
+  }
+
+  .url-input.valid { animation: borderPulse 1.5s ease 1; }
+</style>
+</head>
+<body>
+
+<div class="logo">YT<span>DROP</span> — v1.0</div>
+
+<h1>PASTE.<em>DOWNLOAD.</em></h1>
+<p class="subtitle">// generates a python script using yt-dlp — no browser extension needed</p>
+
+<!-- TABS -->
+<div class="tabs">
+  <button class="tab-btn active" onclick="setTab('video')">🎬 Video</button>
+  <button class="tab-btn" onclick="setTab('audio')">🎵 Audio Only</button>
+  <button class="tab-btn" onclick="setTab('playlist')">📋 Playlist</button>
+</div>
+
+<!-- URL INPUT -->
+<div class="input-wrap">
+  <input
+    class="url-input"
+    id="urlInput"
+    type="text"
+    placeholder="https://www.youtube.com/watch?v=..."
+    oninput="onUrlChange()"
+  />
+  <button class="paste-btn" onclick="pasteUrl()">PASTE</button>
+</div>
+
+<!-- OPTIONS -->
+<div class="options-grid">
+  <div>
+    <label class="option-label">Quality</label>
+    <select id="qualitySelect">
+      <option value="best">Best Available</option>
+      <option value="1080">1080p</option>
+      <option value="720">720p</option>
+      <option value="480">480p</option>
+      <option value="360">360p</option>
+    </select>
+  </div>
+  <div>
+    <label class="option-label">Format</label>
+    <select id="formatSelect">
+      <option value="mp4">MP4 (recommended)</option>
+      <option value="mkv">MKV</option>
+      <option value="webm">WebM</option>
+    </select>
+  </div>
+</div>
+
+<button class="generate-btn" onclick="generate()">⚡ Generate Download Script</button>
+
+<!-- OUTPUT -->
+<div class="output-section" id="outputSection">
+
+  <!-- STEP 1 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div class="step-title">Install Python &amp; yt-dlp</div>
+      <div class="step-desc">one-time setup</div>
+    </div>
+    <div class="step-body">
+      <p class="note">If you haven't already, install Python from <a href="https://python.org" target="_blank">python.org</a>, then run:</p>
+      <div style="margin-top:10px; position:relative;">
+        <div class="code-block" id="installCmd">pip install yt-dlp</div>
+        <button class="copy-btn" onclick="copyCode('installCmd', this)">COPY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div class="step-title">Run This Command</div>
+      <div class="step-desc">open cmd / terminal</div>
+    </div>
+    <div class="step-body">
+      <p class="note">Open Command Prompt (Win+R → type <span class="pill">cmd</span>) and run:</p>
+      <div style="margin-top:10px; position:relative;">
+        <div class="code-block" id="mainCmd">—</div>
+        <button class="copy-btn" onclick="copyCode('mainCmd', this)">COPY</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 — Download .bat script -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <div class="step-title">Or Download .bat Script</div>
+      <div class="step-desc">double-click to run</div>
+    </div>
+    <div class="step-body">
+      <p class="note">Download a Windows batch file — just double-click it and the download starts automatically.</p>
+      <button class="download-script-btn" onclick="downloadBat()">
+        ⬇ Download .bat Script
+      </button>
+    </div>
+  </div>
+
+  <!-- Info -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">ℹ</div>
+      <div class="step-title">Where are my files saved?</div>
+    </div>
+    <div class="step-body">
+      <p class="note">
+        Files are saved to your <span class="pill">Downloads</span> folder by default.<br><br>
+        yt-dlp is open source and fully free. No accounts, no limits.<br>
+        GitHub: <a href="https://github.com/yt-dlp/yt-dlp" target="_blank">github.com/yt-dlp/yt-dlp</a>
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<footer>YTDROP · POWERED BY YT-DLP · FOR PERSONAL USE ONLY</footer>
+
+<script>
+  let currentTab = 'video';
+  let currentUrl = '';
+
+  function setTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+      b.classList.toggle('active', ['video','audio','playlist'][i] === tab);
+    });
+
+    const qualSel = document.getElementById('qualitySelect');
+    const fmtSel = document.getElementById('formatSelect');
+
+    if (tab === 'audio') {
+      qualSel.innerHTML = '<option value="best_audio">Best Audio</option><option value="128k">128 kbps</option><option value="320k">320 kbps</option>';
+      fmtSel.innerHTML = '<option value="mp3">MP3</option><option value="m4a">M4A</option><option value="opus">Opus</option>';
+    } else {
+      qualSel.innerHTML = '<option value="best">Best Available</option><option value="1080">1080p</option><option value="720">720p</option><option value="480">480p</option><option value="360">360p</option>';
+      fmtSel.innerHTML = '<option value="mp4">MP4 (recommended)</option><option value="mkv">MKV</option><option value="webm">WebM</option>';
+    }
+
+    if (currentUrl) generate();
+  }
+
+  function onUrlChange() {
+    currentUrl = document.getElementById('urlInput').value.trim();
+  }
+
+  async function pasteUrl() {
+    try {
+      const text = await navigator.clipboard.readText();
+      document.getElementById('urlInput').value = text;
+      currentUrl = text;
+      const inp = document.getElementById('urlInput');
+      inp.classList.remove('valid');
+      void inp.offsetWidth;
+      inp.classList.add('valid');
+    } catch {
+      document.getElementById('urlInput').focus();
+    }
+  }
+
+  function buildCommand(url) {
+    const quality = document.getElementById('qualitySelect').value;
+    const format = document.getElementById('formatSelect').value;
+    const dl = '%USERPROFILE%\\Downloads';
+
+    if (currentTab === 'audio') {
+      const audiofmt = format === 'mp3' ? 'mp3' : format === 'm4a' ? 'm4a' : 'opus';
+      return `yt-dlp -x --audio-format ${audiofmt} -o "${dl}\\%(title)s.%(ext)s" "${url}"`;
+    }
+
+    if (currentTab === 'playlist') {
+      let fmt = '';
+      if (quality === 'best') {
+        fmt = `bestvideo[ext=${format}]+bestaudio/best[ext=${format}]/best`;
+      } else {
+        fmt = `bestvideo[height<=${quality}][ext=${format}]+bestaudio/best[height<=${quality}]/best`;
+      }
+      return `yt-dlp -f "${fmt}" --merge-output-format ${format} -o "${dl}\\%(playlist_title)s\\%(playlist_index)s - %(title)s.%(ext)s" "${url}"`;
+    }
+
+    // video
+    let fmt = '';
+    if (quality === 'best') {
+      fmt = `bestvideo[ext=${format}]+bestaudio/best[ext=${format}]/best`;
+    } else {
+      fmt = `bestvideo[height<=${quality}][ext=${format}]+bestaudio/best[height<=${quality}]/best`;
+    }
+    return `yt-dlp -f "${fmt}" --merge-output-format ${format} -o "${dl}\\%(title)s.%(ext)s" "${url}"`;
+  }
+
+  function generate() {
+    currentUrl = document.getElementById('urlInput').value.trim();
+
+    if (!currentUrl) {
+      document.getElementById('urlInput').style.borderColor = 'var(--red)';
+      document.getElementById('urlInput').focus();
+      return;
+    }
+
+    if (!currentUrl.includes('youtube.com') && !currentUrl.includes('youtu.be')) {
+      alert('Please enter a valid YouTube URL');
+      return;
+    }
+
+    const cmd = buildCommand(currentUrl);
+    document.getElementById('mainCmd').textContent = cmd;
+    document.getElementById('outputSection').classList.add('visible');
+    document.getElementById('outputSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function copyCode(id, btn) {
+    const text = document.getElementById(id).textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const orig = btn.textContent;
+      btn.textContent = '✓ COPIED';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = orig; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+
+  function downloadBat() {
+    currentUrl = document.getElementById('urlInput').value.trim();
+    if (!currentUrl) { alert('Enter a URL first'); return; }
+    const cmd = buildCommand(currentUrl);
+
+    const bat = `@echo off
+echo YT Drop - Starting download...
+echo.
+${cmd}
+echo.
+echo Done! Check your Downloads folder.
+pause`;
+
+    const blob = new Blob([bat], { type: 'application/octet-stream' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'yt-download.bat';
+    a.click();
+  }
+
+  // Auto-detect clipboard on focus
+  document.getElementById('urlInput').addEventListener('focus', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if ((text.includes('youtube.com') || text.includes('youtu.be')) && !document.getElementById('urlInput').value) {
+        document.getElementById('urlInput').value = text;
+        currentUrl = text;
+      }
+    } catch {}
+  });
+</script>
+</body>
+</html>
